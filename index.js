@@ -1,5 +1,6 @@
 const express = require("express");
 const mysql = require("mysql");
+const cors = require("cors");
 
 const db = mysql.createConnection({
   host: "localhost",
@@ -16,7 +17,7 @@ db.connect((err) => {
 });
 
 const app = express();
-
+app.use(cors());
 app.use(express.json());
 
 app.get("/createdb", (req, res) => {
@@ -73,36 +74,62 @@ app.get("/createusers", (req, res) => {
   });
 });
 
-app.get("/users", (req, res) => {
-  let post = { username: "gob" };
+app.post("/users", (req, res) => {
+  let post = { username: req.body["username"] };
   let sql = "INSERT INTO users SET ?";
-  db.query(sql, post, (err) => {
+  db.query(sql, post, (err, results) => {
     if (err) {
       throw err;
     }
-    res.send("user added");
+    res.send(results);
   });
 });
 
-app.get("/follows", (req, res) => {
-  let post = { uid: 4, follower: 3 };
+app.post("/follows", (req, res) => {
+  let post = { uid: req.body["uid"], follower: req.body["follower"] };
   let sql = "INSERT INTO follows SET ?";
-  db.query(sql, post, (err) => {
+  db.query(sql, post, (err, results) => {
     if (err) {
       throw err;
     }
-    res.send("follower added");
+    res.send(results);
   });
 });
 
-app.get("/tweets", (req, res) => {
-  let post = { tid: 1, uid: 3, post: "hello", date: "2020-12-12" };
-  let sql = "INSERT INTO tweets SET ?";
-  db.query(sql, post, (err) => {
+app.put("/follows", (req, res) => {
+  let sql = `DELETE FROM follows
+WHERE (uid, follower) = (${req.body["uid"]}, ${req.body["follower"]})`;
+  db.query(sql, (err, results) => {
     if (err) {
       throw err;
     }
-    res.send("tweet added");
+    res.send(results);
+  });
+});
+
+app.post("/follows", (req, res) => {
+  let post = { uid: req.body["uid"], follower: req.body["follower"] };
+  let sql = "INSERT INTO follows SET ?";
+  db.query(sql, post, (err, results) => {
+    if (err) {
+      throw err;
+    }
+    res.send(results);
+  });
+});
+
+app.post("/tweets", (req, res) => {
+  let post = {
+    uid: req.body["uid"],
+    post: req.body["post"],
+    date: req.body["date"],
+  };
+  let sql = "INSERT INTO tweets SET ?";
+  db.query(sql, post, (err, results) => {
+    if (err) {
+      throw err;
+    }
+    res.send(results);
   });
 });
 
@@ -112,8 +139,7 @@ app.get("/getusers", (req, res) => {
     if (err) {
       throw err;
     }
-    console.log(results);
-    res.send("users fetched");
+    res.send(results);
   });
 });
 
@@ -139,11 +165,11 @@ app.get("/getfollows", (req, res) => {
 //   });
 // });
 
-app.get("/getweets", (req, res) => {
+app.get("/getweets/:currentUser", (req, res) => {
   let sql = `SELECT T.tid, T.uid, T.post, T.date 
     FROM tweets T
     INNER JOIN follows F ON T.uid = F.uid
-    WHERE F.follower = 5`;
+    WHERE F.follower = ${req.params.currentUser}`;
   db.query(sql, (err, results) => {
     if (err) {
       throw err;
@@ -153,11 +179,11 @@ app.get("/getweets", (req, res) => {
   });
 });
 
-app.get("/getusersfollowed", (req, res) => {
+app.get("/getusersfollowed/:currentUser", (req, res) => {
   let sql = `SELECT U.uid, U.username
     FROM users U
     INNER JOIN follows F ON U.uid = F.uid
-    WHERE F.follower = 5`;
+    WHERE F.follower = ${req.params.currentUser}`;
   db.query(sql, (err, results) => {
     if (err) {
       throw err;
@@ -167,11 +193,25 @@ app.get("/getusersfollowed", (req, res) => {
   });
 });
 
+app.get("/getusersnotfollowed", (req, res) => {
+  let sql = `SELECT A.* 
+  FROM follows A
+  WHERE A.follower = 2`;
+  db.query(sql, (err, results) => {
+    if (err) {
+      throw err;
+    }
+    console.log(results);
+    res.send(results);
+  });
+});
 // app.get("/getusersnotfollowed", (req, res) => {
-//   let sql = `SELECT U.uid, U.username
-//     FROM users U
-//     INNER JOIN follows F ON U.uid <> F.uid
-//     WHERE F.follower = 5`;
+//   let sql = `SELECT A.*
+//   FROM follows A
+//   WHERE A.follower = 2
+//   LEFT JOIN users B
+//   ON A.follower = B.uid
+//   WHERE B.uid IS NULL`;
 //   db.query(sql, (err, results) => {
 //     if (err) {
 //       throw err;
